@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Density Altitude Calculator</title>
+       <!-- Logging interface -->
+    <script src="https://xaxero.com/dlog/tracker.js" data-app-name="DensAlt"></script>
+  
+    <!-- React & ReactDOM (Production versions for stability) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX (Required for single-file React without build step) -->
+    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+    
+    <!-- Tailwind CSS (CDN required for single-file portability) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8fafc;
+        }
+        
+        .animate-fade-in { 
+            animation: fadeIn 0.3s ease-out forwards; 
+        }
+        
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        
+        .daylight-bar-container { 
+            position: relative; 
+            height: 28px; 
+            background: #0f172a; 
+            border-radius: 6px; 
+            overflow: hidden; 
+            display: flex; 
+            border: 1px solid #334155; 
+        }
+        
+        .twilight-morning { 
+            background: linear-gradient(90deg, #0f172a, #f59e0b); 
+        } 
+        
+        .twilight-evening { 
+            background: linear-gradient(90deg, #f59e0b, #0f172a); 
+        } 
+        
+        .daylight { 
+            background: #3b82f6; 
+        }
+        
+        .time-marker { 
+            position: absolute; 
+            top: 0; 
+            bottom: 0; 
+            width: 2px; 
+            background-color: #ef4444; 
+            box-shadow: 0 0 6px #ef4444; 
+            z-index: 20; 
+        }
+        
+        .modal-overlay { 
+            background-color: rgba(0, 0, 0, 0.85); 
+            backdrop-filter: blur(4px); 
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .modal-content {
+            background-color: white;
+            width: 100%;
+            max-width: 64rem; 
+            height: 90vh;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const TRANSLATIONS = {
+            en: {
+                disclaimer: "⚠️ NOT FOR REAL WORLD USE. EDUCATIONAL ONLY.",
+                title: "Density Altitude",
+                subtitle: "Aviation Weather & Performance",
+                placeholder: "ICAO (e.g. KJFK)",
+                getMetar: "Get METAR",
+                plot: "Plot",
+                fetching: "Loading...",
+                highDaWarning: "High Density Altitude",
+                highDaAdvice: "Lean engine per POH.",
+                pressAlt: "Pressure Alt",
+                temp: "Temperature",
+                altimeter: "Altimeter",
+                fieldElev: "Field Elev",
+                dewpoint: "Dewpoint",
+                wind: "Wind",
+                visibility: "Visibility",
+                qnh: "QNH",
+                forecast: "Forecast (TAF)",
+                issued: "Issued",
+                calcDetails: "Calculations",
+                isaTemp: "ISA Temp",
+                rawTaf: "Raw TAF",
+                error: "Fetch failed. Check code.",
+                weather: "Current Weather",
+                daylight: "Daylight (Local)",
+                flightCat: "Flight Cat",
+                runways: "Runways",
+                rw: "RWY",
+                len: "Len",
+                xwind: "X-Wind",
+                hwind: "Headwind",
+                twind: "Tailwind",
+                kt: "kt",
+                plateTitle: "Aerodrome Plate",
+                close: "Close",
+                freqs: "Frequencies",
+                noFreqs: "No frequency data available.",
+                diagram: "Airport Diagram (True North)",
+                from: "From", becoming: "Becoming", tempo: "Tempo", prob: "Prob",
+                at: "at", vis: "Vis",
+                sky: { SKC: "Clear", CLR: "Clear", FEW: "Few", SCT: "Scattered", BKN: "Broken", OVC: "Overcast", VV: "Vert Vis", NSC: "No Sig Cloud" },
+                wx: { RA: "Rain", SN: "Snow", FG: "Fog", BR: "Mist", TS: "Thunder", HZ: "Haze", SH: "Shower", DZ: "Drizzle", GR: "Hail" },
+                nominal: "Nominal", reduced: "Reduced", critical: "Critical"
+            },
+            es: {
+                title: "Altitud Densidad",
+                subtitle: "Clima y Rendimiento",
+                placeholder: "ICAO (ej. LEMD)",
+                getMetar: "METAR",
+                plot: "Placa",
+                fetching: "Cargando...",
+                highDaWarning: "Alta Altitud Densidad",
+                highDaAdvice: "Ajuste mezcla.",
+                pressAlt: "Alt Presión",
+                temp: "Temperatura",
+                altimeter: "Altímetro",
+                fieldElev: "Elev Campo",
+                dewpoint: "Pto Rocío",
+                wind: "Viento",
+                visibility: "Visibilidad",
+                qnh: "QNH",
+                forecast: "Pronóstico (TAF)",
+                issued: "Emitido",
+                calcDetails: "Cálculos",
+                isaTemp: "Temp ISA",
+                rawTaf: "TAF Crudo",
+                error: "Error. Verifique código.",
+                weather: "Clima Actual",
+                daylight: "Luz (Local)",
+                flightCat: "Cat. Vuelo",
+                runways: "Pistas",
+                rw: "Pista",
+                len: "Long",
+                xwind: "V. Cruzado",
+                hwind: "V. Frente",
+                twind: "V. Cola",
+                kt: "kt",
+                plateTitle: "Placa Aeródromo",
+                close: "Cerrar",
+                freqs: "Frecuencias",
+                noFreqs: "No hay frecuencias disponibles.",
+                diagram: "Diagrama del Aeropuerto",
+                from: "Desde", becoming: "Cambiando", tempo: "Temporal", prob: "Prob",
+                at: "a", vis: "Vis",
+                sky: { SKC: "Despejado", CLR: "Claro", FEW: "Escasas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Cubierto", VV: "Vis Vert", NSC: "Sin Nubes" },
+                wx: { RA: "Lluvia", SN: "Nieve", FG: "Niebla", BR: "Bruma", TS: "Tormenta", HZ: "Calima", SH: "Chubasco", DZ: "Llovizna", GR: "Granizo" },
+                nominal: "Nominal", reduced: "Reducido", critical: "Crítico"
+            },
+            fr: {
+                title: "Altitude Densité",
+                subtitle: "Météo & Perf",
+                placeholder: "OACI (ex. LFPG)",
+                getMetar: "METAR",
+                plot: "Carte",
+                fetching: "Chargement...",
+                highDaWarning: "Haute Alt. Densité",
+                highDaAdvice: "Régler mélange.",
+                pressAlt: "Alt Pression",
+                temp: "Température",
+                altimeter: "Calage Alt",
+                fieldElev: "Élev Terrain",
+                dewpoint: "Pt Rosée",
+                wind: "Vent",
+                visibility: "Visibilité",
+                qnh: "QNH",
+                forecast: "Prévision (TAF)",
+                issued: "Émis",
+                calcDetails: "Calculs",
+                isaTemp: "Temp ISA",
+                rawTaf: "TAF Brut",
+                error: "Erreur. Vérifiez code.",
+                weather: "Météo Actuelle",
+                daylight: "Lumière (Local)",
+                flightCat: "Cat. Vol",
+                runways: "Pistes",
+                rw: "Piste",
+                len: "Long",
+                xwind: "Vent Trav.",
+                hwind: "Vent Face",
+                twind: "Vent Arrière",
+                kt: "kt",
+                plateTitle: "Carte Aérodrome",
+                close: "Fermer",
+                freqs: "Fréquences",
+                noFreqs: "Pas de fréquences disponibles.",
+                diagram: "Diagramme",
+                from: "De", becoming: "Devenant", tempo: "Tempo", prob: "Prob",
+                at: "à", vis: "Vis",
+                sky: { SKC: "Clair", CLR: "Clair", FEW: "Peu", SCT: "Épars", BKN: "Fragmentés", OVC: "Couvert", VV: "Vis Vert", NSC: "Pas Nuages" },
+                wx: { RA: "Pluie", SN: "Neige", FG: "Brouillard", BR: "Brume", TS: "Orage", HZ: "Brume Sèche", SH: "Averse", DZ: "Bruine", GR: "Grêle" },
+                nominal: "Nominal", reduced: "Réduit", critical: "Critique"
+            },
+            de: {
+                title: "Dichtehöhe",
+                subtitle: "Wetter & Leistung",
+                placeholder: "ICAO (z.B. EDDF)",
+                getMetar: "METAR",
+                plot: "Karte",
+                fetching: "Laden...",
+                highDaWarning: "Hohe Dichtehöhe",
+                highDaAdvice: "Gemisch leanen.",
+                pressAlt: "Druckhöhe",
+                temp: "Temperatur",
+                altimeter: "Höhenmesser",
+                fieldElev: "Platzhöhe",
+                dewpoint: "Taupunkt",
+                wind: "Wind",
+                visibility: "Sicht",
+                qnh: "QNH",
+                forecast: "Vorhersage (TAF)",
+                issued: "Ausgegeben",
+                calcDetails: "Berechnung",
+                isaTemp: "ISA Temp",
+                rawTaf: "Roh-TAF",
+                error: "Fehler.",
+                weather: "Aktuelles Wetter",
+                daylight: "Tageslicht (Lokal)",
+                flightCat: "Flugkategorie",
+                runways: "Pisten",
+                rw: "RWY",
+                len: "Länge",
+                xwind: "Seitenwind",
+                hwind: "Gegenwind",
+                twind: "Rückenwind",
+                kt: "kt",
+                plateTitle: "Flugplatzkarte",
+                close: "Schließen",
+                freqs: "Frequenzen",
+                noFreqs: "Keine Frequenzen verfügbar.",
+                diagram: "Flugplatzdiagramm",
+                from: "Ab", becoming: "Wird", tempo: "Zeitweise", prob: "Wahrsch.",
+                at: "auf", vis: "Sicht",
+                sky: { SKC: "Wolkenlos", CLR: "Klar", FEW: "Wenige", SCT: "Aufgelockert", BKN: "Durchbrochen", OVC: "Bedeckt", VV: "Vertikalsicht", NSC: "Keine Wolken" },
+                wx: { RA: "Regen", SN: "Schnee", FG: "Nebel", BR: "Dunst", TS: "Gewitter", HZ: "Dunst", SH: "Schauer", DZ: "Niesel", GR: "Hagel" },
+                nominal: "Normal", reduced: "Reduziert", critical: "Kritisch"
+            }
+        };
+
+        // --- MATH HELPERS ---
+        const getSunTimes = (lat, lng) => {
+            const date = new Date(); const times = { sunrise: null, sunset: null };
+            const radians = Math.PI / 180.0; const degrees = 180.0 / Math.PI;
+            const a = Math.floor((14 - (date.getMonth() + 1)) / 12);
+            const y = date.getFullYear() + 4800 - a;
+            const m = (date.getMonth() + 1) + 12 * a - 3;
+            const j_day = date.getDate() + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+            const n_star = j_day - 2451545.0 + 0.0008;
+            const lw = -lng; 
+            const n = Math.round(n_star - lw / 360.0); 
+            const J_star = 2451545.0 + 0.0009 + (lw / 360.0) + n;
+            const M = (357.5291 + 0.98560028 * (J_star - 2451545.0)) % 360;
+            const C = 1.9148 * Math.sin(M * radians) + 0.0200 * Math.sin(2 * M * radians) + 0.0003 * Math.sin(3 * M * radians);
+            const lambda = (M + C + 180.0 + 102.9372) % 360;
+            const J_transit = J_star + 0.0053 * Math.sin(M * radians) - 0.0069 * Math.sin(2 * lambda * radians);
+            const delta = Math.asin(Math.sin(lambda * radians) * Math.sin(23.44 * radians)) * degrees;
+            const hour_angle_rad = Math.acos((Math.sin(-0.83 * radians) - Math.sin(lat * radians) * Math.sin(delta * radians)) / (Math.cos(lat * radians) * Math.cos(delta * radians)));
+            const hour_angle = hour_angle_rad * degrees;
+            const J_rise = J_transit - hour_angle / 360.0;
+            const J_set = J_transit + hour_angle / 360.0;
+            const jdToDate = (jd) => {
+                const z = Math.floor(jd + 0.5); const f = jd + 0.5 - z;
+                let alpha = z; if (z >= 2299161) { const alpha1 = Math.floor((z - 1867216.25) / 36524.25); alpha = z + 1 + alpha1 - Math.floor(alpha1 / 4); }
+                const b = alpha + 1524; const c = Math.floor((b - 122.1) / 365.25);
+                const d = Math.floor(365.25 * c); const e = Math.floor((b - d) / 30.6001);
+                const day = b - d - Math.floor(30.6001 * e) + f;
+                const hours = Math.floor((day % 1) * 24);
+                const minutes = Math.floor((((day % 1) * 24) % 1) * 60);
+                const rDate = new Date(); rDate.setUTCHours(hours, minutes, 0, 0); return rDate;
+            };
+            if (!isNaN(J_rise)) times.sunrise = jdToDate(J_rise);
+            if (!isNaN(J_set)) times.sunset = jdToDate(J_set);
+            return times;
+        };
+
+        const getMetarAge = (timestamp) => {
+            if (!timestamp) return { isOld: false, text: "N/A", diffMins: 0 };
+            const obs = new Date(timestamp);
+            const now = new Date();
+            const diffMs = now - obs;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            // Format: HH:MM Z
+            const timeStr = `${obs.getUTCHours().toString().padStart(2, '0')}:${obs.getUTCMinutes().toString().padStart(2, '0')} Z`;
+            
+            return {
+                isOld: diffMins > 90,
+                text: timeStr,
+                diffMins: diffMins,
+                fullDate: obs.toUTCString()
+            };
+        };
+
+        const parseRawMetar = (raw) => {
+            const data = { raw: raw };
+            // Parse observation time from DDHHMMz group (e.g. "182355Z") — always UTC
+            const timeMatch = raw.match(/\b(\d{2})(\d{2})(\d{2})Z\b/);
+            if (timeMatch) {
+                const day = parseInt(timeMatch[1]);
+                const hour = parseInt(timeMatch[2]);
+                const min = parseInt(timeMatch[3]);
+                const now = new Date();
+                // Build a UTC date: use current year/month, but roll back a month if day > today
+                let year = now.getUTCFullYear();
+                let month = now.getUTCMonth(); // 0-based
+                if (day > now.getUTCDate() + 1) {
+                    // Observation is from last month
+                    month -= 1;
+                    if (month < 0) { month = 11; year -= 1; }
+                }
+                data.obsTime = new Date(Date.UTC(year, month, day, hour, min, 0)).toISOString();
+            }
+            const altMatch = raw.match(/(?:Q|A)(\d{4})(?=\s|$)/);
+            if (altMatch) {
+                const fullMatch = raw.match(/(Q|A)(\d{4})(?=\s|$)/);
+                if (fullMatch) {
+                    data.altim = fullMatch[1] === 'Q' ? parseFloat(fullMatch[2]) : parseFloat(fullMatch[2]) * 0.338639;
+                }
+            }
+            const tempMatch = raw.match(/(M?\d{2})\/(M?\d{2})(?=\s|$)/);
+            if (tempMatch) {
+                const parseTemp = (s) => s.startsWith('M') ? -parseInt(s.slice(1)) : parseInt(s);
+                data.temp = parseTemp(tempMatch[1]); data.dewp = parseTemp(tempMatch[2]);
+            }
+            const windMatch = raw.match(/(\d{3}|VRB)(\d{2,3})(G\d{2,3})?KT/);
+            if (windMatch) {
+                data.wdir = windMatch[1] === 'VRB' ? 0 : parseInt(windMatch[1]);
+                data.wspd = parseInt(windMatch[2]);
+            }
+            if (raw.includes("CAVOK")) { data.visib = 9999; data.ceiling = 12000; }
+            else {
+                const visMatch = raw.match(/\s(\d{1,2}|(?:\d+\/)?\d+)SM\s/);
+                if (visMatch) {
+                    const val = visMatch[1].replace('SM', '');
+                    if (val.includes('/')) { const [n, d] = val.split('/'); data.visib = (parseInt(n) / parseInt(d)) * 1609.34; }
+                    else data.visib = parseFloat(val) * 1609.34;
+                } else {
+                    const visMatchM = raw.match(/\s(\d{4})\s/);
+                    if (visMatchM) data.visib = parseInt(visMatchM[1]);
+                }
+            }
+            const ceilings = []; const cloudRegex = /(BKN|OVC)(\d{3})/g; let match;
+            while ((match = cloudRegex.exec(raw)) !== null) ceilings.push(parseInt(match[2]) * 100);
+            if (ceilings.length > 0) data.ceiling = Math.min(...ceilings);
+            else if (raw.includes('CLR') || raw.includes('SKC') || raw.includes('NSC')) data.ceiling = 12000;
+            return data;
+        };
+
+        const calculateRunwayComponents = (rwyHeading, windDir, windSpd) => {
+            if (windDir === undefined || windSpd === undefined || windDir === null) return null;
+            const rwyRad = (rwyHeading) * (Math.PI / 180);
+            const windRad = (windDir) * (Math.PI / 180);
+            const angleDiff = windRad - rwyRad;
+            return {
+                crosswind: Math.abs(windSpd * Math.sin(angleDiff)).toFixed(1),
+                headwind: (windSpd * Math.cos(angleDiff)).toFixed(1),
+                isHeadwind: (windSpd * Math.cos(angleDiff)) >= 0
+            };
+        };
+
+        // --- ICONS ---
+        const IconWrapper = ({ children, className, ...props }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>;
+        const RotateCcw = (p) => <IconWrapper {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"/><path d="M3 3v9h9"/></IconWrapper>;
+        const AlertTriangle = (p) => <IconWrapper {...p}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconWrapper>;
+        const Thermometer = (p) => <IconWrapper {...p}><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></IconWrapper>;
+        const WindArrow = (p) => <IconWrapper {...p}><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></IconWrapper>;
+        const Eye = (p) => <IconWrapper {...p}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></IconWrapper>;
+        const CloudRain = (p) => <IconWrapper {...p}><line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></IconWrapper>;
+        const Info = (p) => <IconWrapper {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></IconWrapper>;
+        const Search = (p) => <IconWrapper {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></IconWrapper>;
+        const Clock = (p) => <IconWrapper {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconWrapper>;
+        const Plane = (p) => <IconWrapper {...p}><path d="M2 12h20"/><path d="M13 2v20"/><path d="m9 2 4 4"/><path d="m9 22 4-4"/></IconWrapper>;
+        const Maximize = (p) => <IconWrapper {...p}><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></IconWrapper>;
+        const XCircle = (p) => <IconWrapper {...p}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></IconWrapper>;
+        const Radio = (p) => <IconWrapper {...p}><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></IconWrapper>;
+
+        // --- COMPONENT: Airport Diagram (Vector Plot) ---
+        
+        const AirportDiagram = ({ runways, windDir, windSpd }) => {
+            if (!runways || runways.length === 0) return null;
+            
+            const padding = 30;
+            const size = 300;
+            const center = size / 2;
+
+            // Windsock Logic
+            const displayWindDir = windDir || 0;
+            const displayWindSpd = windSpd || 0;
+            
+            // Overhead View: Windsock points WITH the wind. 
+            // If wind is from 270, sock points 90.
+            const overheadRotation = (displayWindDir + 180) % 360;
+
+            // Profile View: 
+            // 0 kts = 0 deg (Hanging Down).
+            // 30 kts = 90 deg (Horizontal).
+            // Rotation applied to SVG group to lift the sock.
+            // A -90 rotation moves it from Down to Right (Horizontal).
+            const droopAngle = Math.min(90, (displayWindSpd / 30) * 90);
+
+
+            // Check if any runway has geometry data
+            const hasGeo = runways.some(r => r.geometry && r.geometry.le_lat);
+            let renderLines = [];
+
+            if (hasGeo) {
+                // Find Bounding Box of all coordinate points
+                let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+                
+                runways.forEach(r => {
+                    if (r.geometry) {
+                        minLat = Math.min(minLat, r.geometry.le_lat, r.geometry.he_lat);
+                        maxLat = Math.max(maxLat, r.geometry.le_lat, r.geometry.he_lat);
+                        minLon = Math.min(minLon, r.geometry.le_lon, r.geometry.he_lon);
+                        maxLon = Math.max(maxLon, r.geometry.le_lon, r.geometry.he_lon);
+                    }
+                });
+
+                // Calculate dimensions
+                // Add a small buffer to prevent 0-division if only 1 point exists (rare edge case)
+                const latSpan = (maxLat - minLat) || 0.005;
+                const lonSpan = (maxLon - minLon) || 0.005;
+                
+                // Aspect Ratio Correction (Mercator-ish)
+                // Adjust longitude scale by cosine of latitude to keep proportions square on screen
+                const aspect = Math.cos((minLat + maxLat) / 2 * (Math.PI / 180));
+                
+                // Calculate Scale Factors
+                // We want the airport to fit within (size - padding)
+                // X scale depends on longitude, Y scale on latitude
+                const xScale = (size - padding * 2) / lonSpan;
+                const yScale = (size - padding * 2) / latSpan;
+                
+                // Use the smallest scale to ensure everything fits
+                const scale = Math.min(xScale, yScale / aspect);
+
+                renderLines = runways.map(r => {
+                    if (!r.geometry) return null;
+                    
+                    // Transform Geo Coords to SVG Coords (0..size)
+                    // X: (lon - minLon) * scale + centering_offset
+                    // Y: size - ((lat - minLat) * scale / aspect) - centering_offset
+                    
+                    // First calculate raw projected size
+                    const rawW = lonSpan * scale;
+                    const rawH = latSpan * scale / aspect;
+                    
+                    // Calculate centering offsets to put the diagram in the middle of the box
+                    const offsetX = (size - rawW) / 2;
+                    const offsetY = (size - rawH) / 2;
+                    
+                    const x1 = (r.geometry.le_lon - minLon) * scale + offsetX;
+                    const y1 = size - ((r.geometry.le_lat - minLat) * scale / aspect) - offsetY;
+                    
+                    const x2 = (r.geometry.he_lon - minLon) * scale + offsetX;
+                    const y2 = size - ((r.geometry.he_lat - minLat) * scale / aspect) - offsetY;
+                    
+                    return { x1, y1, x2, y2, l1: r.ident1, l2: r.ident2 };
+                }).filter(x => x);
+
+            } else {
+                // LOGICAL MODE (Fallback if no coordinates)
+                // Use headings and lengths relative to center point
+                
+                // Find longest runway to set scale
+                const maxLen = Math.max(...runways.map(r => r.length_ft));
+                const scale = (size - padding * 2) / maxLen;
+
+                // Track used headings to detect parallel runways
+                // If we see the same heading twice (e.g. 09L and 09R), we offset them
+                const headingCounts = {};
+                
+                renderLines = runways.map(r => {
+                    // Base Angle
+                    const angle = (r.heading1 - 90) * (Math.PI / 180);
+                    
+                    // Check for parallels (same heading)
+                    const hdgKey = Math.round(r.heading1);
+                    if (!headingCounts[hdgKey]) headingCounts[hdgKey] = 0;
+                    headingCounts[hdgKey]++;
+                    
+                    // Calculate Offset Vector (Perpendicular to runway)
+                    // If it's the 2nd runway with this heading, offset it
+                    let offsetDist = 0;
+                    
+                    // Explicit L/R logic
+                    if (r.ident1.includes("L")) offsetDist = -15;
+                    if (r.ident1.includes("R")) offsetDist = 15;
+                    // Auto-offset if duplicates found but not labeled L/R (rare)
+                    if (offsetDist === 0 && headingCounts[hdgKey] > 1) offsetDist = 15 * (headingCounts[hdgKey] - 1);
+
+                    const perpAngle = angle + Math.PI / 2;
+                    const offX = offsetDist * Math.cos(perpAngle);
+                    const offY = offsetDist * Math.sin(perpAngle);
+
+                    const cx = center + offX;
+                    const cy = center + offY;
+
+                    const lenPx = r.length_ft * scale;
+
+                    const x1 = cx + (lenPx/2) * Math.cos(angle + Math.PI); 
+                    const y1 = cy + (lenPx/2) * Math.sin(angle + Math.PI);
+                    const x2 = cx + (lenPx/2) * Math.cos(angle); 
+                    const y2 = cy + (lenPx/2) * Math.sin(angle);
+                    
+                    return { x1, y1, x2, y2, l1: r.ident1, l2: r.ident2 };
+                });
+            }
+
+            return (
+                <div className="flex flex-col items-center">
+                    <div className="relative w-[300px] h-[300px] bg-slate-900 rounded-xl border-4 border-slate-700 shadow-inner flex items-center justify-center overflow-hidden">
+                        
+                        {/* Windsock Widget (Top-Left) */}
+                        <div className="absolute top-2 left-2 flex gap-2 bg-slate-800/90 p-1.5 rounded-lg border border-slate-600 backdrop-blur-sm z-20 shadow-xl">
+                            {/* Text labels removed for compactness */}
+                            
+                            <div className="flex gap-2">
+                                {/* Overhead View */}
+                                <div className="relative w-12 h-12 flex items-center justify-center">
+                                    {/* Compass Rose Background */}
+                                    <div className="absolute inset-0 border border-slate-500 rounded-full opacity-30"></div>
+                                    <div className="absolute top-0 text-[8px] text-slate-400 font-mono -mt-1 bg-slate-800 px-0.5 z-10">N</div>
+                                    <div className="absolute bottom-0 text-[8px] text-slate-600 font-mono -mb-1">S</div>
+                                    
+                                    {/* Rotating Sock Group */}
+                                    <svg width="40" height="40" viewBox="0 0 40 40" style={{ transform: `rotate(${overheadRotation}deg)` }}>
+                                        {/* Center Pivot */}
+                                        <circle cx="20" cy="20" r="1.5" fill="white" />
+                                        {/* Cone pointing UP (North) in local SVG space. 
+                                            Rotation moves it to downwind direction. 
+                                            Wide end at pivot (20,20), Narrow end at tip (y=1) to touch bounding circle. */}
+                                        <path d="M16 20 L24 20 L21 1 L19 1 Z" fill="#f59e0b" stroke="white" strokeWidth="0.5" />
+                                        <path d="M16.8 15 H23.2 M17.6 10 H22.4 M18.4 5 H21.6" stroke="white" strokeWidth="0.5" opacity="0.6" />
+                                    </svg>
+                                </div>
+
+                                {/* Profile View */}
+                                <div className="relative w-12 h-12 flex items-center justify-center border-l border-slate-600 pl-2">
+                                    <svg width="40" height="40" viewBox="0 0 40 40">
+                                        {/* Pole */}
+                                        <line x1="10" y1="35" x2="10" y2="5" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+                                        
+                                        {/* Sock Pivot Group (At Pole Top) */}
+                                        {/* Rotate -90 moves it from Vertical Down to Horizontal Right */}
+                                        <g transform={`translate(10, 5) rotate(${-droopAngle})`}>
+                                            {/* Sock drawn Hanging Vertical Down 
+                                                Wide end at Pivot (0,0), Narrow end at bottom (y=20) */}
+                                            <g>
+                                                <path d="M-4 0 L4 0 L2 20 L-2 20 Z" fill="#f59e0b" stroke="white" strokeWidth="0.5" />
+                                                <path d="M-3.5 5 H3.5 M-3 10 H3 M-2.5 15 H2.5" stroke="white" strokeWidth="0.5" opacity="0.6" />
+                                            </g>
+                                        </g>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Static North Indicator (Small T in corner) */}
+                        <div className="absolute top-2 right-2 flex flex-col items-center opacity-50">
+                            <div className="text-[10px] text-white font-mono">TN</div>
+                            <div className="w-px h-4 bg-white"></div>
+                        </div>
+
+                        {/* Runways Layer */}
+                        <svg width={size} height={size} className="absolute inset-0">
+                            {renderLines.map((line, idx) => (
+                                <g key={idx}>
+                                    <line 
+                                        x1={line.x1} y1={line.y1} 
+                                        x2={line.x2} y2={line.y2} 
+                                        stroke="#94a3b8" 
+                                        strokeWidth="12" 
+                                        strokeLinecap="square" 
+                                    />
+                                    <line 
+                                        x1={line.x1} y1={line.y1} 
+                                        x2={line.x2} y2={line.y2} 
+                                        stroke="#e2e8f0" 
+                                        strokeWidth="2" 
+                                        strokeDasharray="4,4" 
+                                    />
+                                    <text 
+                                        x={line.x1} y={line.y1} 
+                                        fill="white" 
+                                        fontSize="10" 
+                                        textAnchor="middle" 
+                                        dy="4" 
+                                        fontWeight="bold" 
+                                        className="drop-shadow-md" 
+                                        stroke="black" 
+                                        strokeWidth="0.5"
+                                    >
+                                        {line.l1}
+                                    </text>
+                                    <text 
+                                        x={line.x2} y={line.y2} 
+                                        fill="white" 
+                                        fontSize="10" 
+                                        textAnchor="middle" 
+                                        dy="4" 
+                                        fontWeight="bold" 
+                                        className="drop-shadow-md" 
+                                        stroke="black" 
+                                        strokeWidth="0.5"
+                                    >
+                                        {line.l2}
+                                    </text>
+                                </g>
+                            ))}
+                        </svg>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- APP ---
+        const DensityAltitudeApp = () => {
+            const [inputCode, setInputCode] = useState('');
+            const [weatherData, setWeatherData] = useState(null);
+            const [tafData, setTafData] = useState(null);
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [calcDetails, setCalcDetails] = useState(null);
+            const [lang, setLang] = useState('en');
+            const [sunData, setSunData] = useState(null);
+            const [showPlate, setShowPlate] = useState(false);
+
+            useEffect(() => {
+                const browserLang = navigator.language.split('-')[0];
+                if (TRANSLATIONS[browserLang]) setLang(browserLang);
+                
+                const lastStation = localStorage.getItem('lastStation');
+                if (lastStation) {
+                    setInputCode(lastStation);
+                    fetchWeather(lastStation);
+                }
+            }, []);
+
+            const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+            const STANDARD_PRESSURE_INHG = 29.92;
+
+            // Server-side proxy: routes through proxy.php — no CORS, no third-party rate limits.
+            const fetchViaProxy = async (targetUrl) => {
+                const res = await fetch(`proxy.php?url=${encodeURIComponent(targetUrl)}`, { signal: AbortSignal.timeout(12000) });
+                if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+                return await res.text();
+            };
+
+            const fetchWeather = async (code) => {
+                if (!code) return;
+                setLoading(true); setError(null);
+                setWeatherData(null); setTafData(null); setCalcDetails(null); setSunData(null);
+
+                const upperCode = code.toUpperCase();
+                const cb = `?_=${Date.now()}`;
+                let station = null;
+                let usedSource = "none";
+
+                try {
+                    // 1. Fetch Station Info from local PHP Script (If available)
+                    let stationInfo = null;
+                    try {
+                        const res = await fetch(`station_lookup.php?icao=${upperCode}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data && !data.error) stationInfo = data;
+                        }
+                    } catch(e) { console.warn("PHP Station lookup failed"); }
+
+                    // 2. PRIMARY: AWC METAR via server-side proxy
+                    try {
+                        const awcUrl = `https://aviationweather.gov/api/data/metar?ids=${upperCode}&format=json&hours=0`;
+                        const awcText = await fetchViaProxy(awcUrl);
+                        const awcData = JSON.parse(awcText);
+                        if (awcData && awcData.length > 0) {
+                            station = awcData[0];
+                            usedSource = "AWC";
+                        }
+                    } catch (e) {
+                        console.warn("AWC Fetch failed, trying NOAA fallback...", e);
+                    }
+
+                    // 3. FALLBACK: NOAA Text via Proxy
+                    if (!station) {
+                        const rawUrl = `https://tgftp.nws.noaa.gov/data/observations/metar/stations/${upperCode}.TXT${cb}`;
+                        try {
+                            const rawText = await fetchViaProxy(rawUrl);
+                            if (rawText && rawText.includes(upperCode)) {
+                                const lines = rawText.trim().split('\n');
+                                const metarLine = lines.find(l => l.startsWith(upperCode)) || lines[lines.length-1];
+                                
+                                // Parse this raw text immediately to create the station object
+                                const parsed = parseRawMetar(metarLine);
+                                
+                                // Parse Time
+                                let obsTimeObj = new Date();
+                                if (lines.length >= 1) {
+                                    const dateLine = lines[0].trim();
+                                    const parsedDate = new Date(dateLine + " UTC");
+                                    if (!isNaN(parsedDate.getTime())) obsTimeObj = parsedDate;
+                                }
+
+                                station = {
+                                    icaoId: upperCode, name: upperCode, rawOb: metarLine,
+                                    temp: parsed.temp, dewC: parsed.dewp, dewp: parsed.dewp,
+                                    altim: parsed.altim, wdir: parsed.wdir, wspd: parsed.wspd,
+                                    visib: parsed.visib, ceiling: parsed.ceiling,
+                                    lat: null, lon: null, elev: 0, 
+                                    reportTime: obsTimeObj.toISOString(), flightCategory: null 
+                                };
+                                usedSource = "NOAA_Text";
+                            }
+                        } catch(e) { console.warn("NOAA Fallback failed", e); }
+                    }
+
+                    if (!station) throw new Error(t.error);
+
+                    // Normalize Data: Ensure consistent format regardless of source
+                    // AWC JSON provides rawOb, so we should always re-parse the raw text
+                    // to ensure our math matches exactly what we expect.
+                    const parsedSafe = parseRawMetar(station.rawOb);
+                    
+                    // Merge parsed data into station object (Prefer parsed values for math)
+                    station.temp = parsedSafe.temp;
+                    station.dewp = parsedSafe.dewp;
+                    station.altim = parsedSafe.altim;
+                    station.wdir = parsedSafe.wdir;
+                    station.wspd = parsedSafe.wspd;
+                    // Important: AWC JSON 'visib' is in Statute Miles. 
+                    // Our parsedSafe.visib is already converted to Meters by parseRawMetar.
+                    station.visib = parsedSafe.visib; 
+                    
+                    if (stationInfo) {
+                        station.name = stationInfo.name;
+                        station.runways = stationInfo.runways; 
+                        station.lat = stationInfo.lat;
+                        station.lon = stationInfo.lon;
+                        station.elev = stationInfo.elev_m;
+                        station.freqs = stationInfo.freqs; 
+                    }
+                    
+                    // Normalize Timestamps: parse from raw METAR string (always UTC, always present)
+                    if (parsedSafe.obsTime) {
+                        station.obsTime = parsedSafe.obsTime;
+                    } else if (station.reportTime) {
+                        // AWC reportTime is "YYYY/MM/DD HH:MM" — must append Z to treat as UTC
+                        const rt = station.reportTime.replace(/\//g, '-').replace(' ', 'T') + ':00Z';
+                        const rtDate = new Date(rt);
+                        station.obsTime = isNaN(rtDate) ? new Date().toISOString() : rtDate.toISOString();
+                    }
+
+                    if (!station.flightCategory) station.flightCategory = calculateFlightCategory(station);
+
+                    processMetarData(station);
+
+                    if (station.lat !== null && station.lon !== null) {
+                        setSunData(getSunTimes(station.lat, station.lon));
+                    }
+
+                    // Fetch TAF via server-side proxy
+                    try {
+                        const tafUrl = `https://aviationweather.gov/api/data/taf?ids=${upperCode}&format=json`;
+                        const tafText = await fetchViaProxy(tafUrl);
+                        const tafJson = JSON.parse(tafText);
+                        if (tafJson && tafJson.length > 0) setTafData(tafJson[0]);
+                    } catch (e) {
+                        console.warn("TAF fetch failed", e);
+                    }
+
+                    localStorage.setItem('lastStation', station.icaoId);
+
+                } catch (err) {
+                    console.error(err);
+                    setError(t.error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const calculateFlightCategory = (station) => {
+                let vis = 10;
+                if (station.visib !== undefined) {
+                    // Visib is stored in meters in our normalized station object
+                    vis = station.visib / 1609.34;
+                }
+                
+                let cig = 12000;
+                if (station.ceiling !== undefined) {
+                    cig = station.ceiling;
+                } else if (station.rawOb) {
+                    const ceilings = []; const cloudRegex = /(BKN|OVC)(\d{3})/g; let match;
+                    while ((match = cloudRegex.exec(station.rawOb)) !== null) {
+                        ceilings.push(parseInt(match[2]) * 100);
+                    }
+                    if (ceilings.length > 0) {
+                        cig = Math.min(...ceilings);
+                    }
+                }
+
+                if (cig < 500 || vis < 1) return 'LIFR';
+                if (cig < 1000 || vis < 3) return 'IFR';
+                if (cig <= 3000 || vis <= 5) return 'MVFR';
+                return 'VFR';
+            };
+
+            const processMetarData = (data) => {
+                // At this point data.temp and data.dewp are from parseRawMetar (integers)
+                // data.tempC might be from AWC JSON (float). Prefer integer for classic look or float for accuracy?
+                // Let's rely on the parsed integer for consistency with the raw string.
+                const tempData = data.temp;
+                const dewpData = data.dewp;
+                
+                if (tempData === undefined || data.altim === undefined) {
+                    console.error("Missing temp or altim", data);
+                    throw new Error("Incomplete data.");
+                }
+
+                let finalElev = 0;
+                if (data.elev) finalElev = data.elev; 
+                
+                // data.altim comes from parseRawMetar which normalizes to hPa
+                const altimInHg = data.altim * 0.02953;
+                const elevFt = finalElev * 3.28084;
+                
+                const pa = (STANDARD_PRESSURE_INHG - altimInHg) * 1000 + elevFt;
+                const isaTemp = 15 - (elevFt * 0.00198);
+                const da = pa + (118.8 * (tempData - isaTemp));
+
+                setWeatherData({
+                    icao: data.icaoId, name: data.name, raw: data.rawOb,
+                    tempC: tempData, dewC: dewpData, altimHpa: data.altim,
+                    altimInHg: altimInHg, elevM: finalElev, 
+                    windDir: data.wdir, windSpd: data.wspd,
+                    flightCategory: data.flightCategory, timestamp: data.obsTime,
+                    vis: data.visib, lat: data.lat, lon: data.lon,
+                    runways: data.runways || [], freqs: data.freqs || []
+                });
+
+                setCalcDetails({
+                    pa: pa.toFixed(2), isaTemp: isaTemp.toFixed(2),
+                    da: da.toFixed(2), daM: (da * 0.3048).toFixed(2)
+                });
+            };
+
+            const getFlightCategoryColor = (cat) => {
+                switch(cat) {
+                    case 'VFR': return 'text-green-700 bg-green-100 border-green-300';
+                    case 'MVFR': return 'text-blue-700 bg-blue-100 border-blue-300';
+                    case 'IFR': return 'text-red-700 bg-red-100 border-red-300';
+                    case 'LIFR': return 'text-purple-700 bg-purple-100 border-purple-300';
+                    default: return 'text-gray-600 bg-gray-100 border-gray-200';
+                }
+            };
+
+            const getDaSeverity = (da, elevM) => {
+                const elevFt = elevM * 3.28084;
+                const diff = da - elevFt;
+                if (diff > 3000) return { color: 'text-red-600', label: t.critical };
+                if (diff > 1000) return { color: 'text-orange-600', label: t.reduced };
+                return { color: 'text-green-600', label: t.nominal };
+            };
+
+            const renderDaylightBar = () => {
+                if (!sunData || !sunData.sunrise || !sunData.sunset || !weatherData || !weatherData.lon) return null;
+                const srUTC = sunData.sunrise; const ssUTC = sunData.sunset; const nowUTC = new Date();
+                const offsetHours = Math.round(weatherData.lon / 15); const offsetMins = offsetHours * 60;
+                
+                const getLocalMins = (utcDate) => {
+                    let m = utcDate.getUTCHours() * 60 + utcDate.getUTCMinutes() + offsetMins;
+                    if (m < 0) m += 1440; if (m >= 1440) m -= 1440; return m;
+                };
+                const riseLocal = getLocalMins(srUTC); const setLocal = getLocalMins(ssUTC); const nowLocal = getLocalMins(nowUTC);
+                const formatTime = (m) => `${Math.floor(m/60).toString().padStart(2,'0')}:${Math.floor(m%60).toString().padStart(2,'0')}`;
+                const toPct = (m) => (m/1440)*100;
+                const dawnStart = Math.max(0, riseLocal - 30); const duskEnd = Math.min(1440, setLocal + 30);
+
+                return (
+                    <div className="mt-4 pt-4 border-t border-slate-100">
+                         <div className="flex justify-between mb-2 text-xs font-bold text-slate-500 uppercase">
+                             <div className="flex gap-1.5">{t.daylight}</div>
+                             <div className="font-mono text-slate-400">{nowUTC.getUTCHours().toString().padStart(2,'0')}:{nowUTC.getUTCMinutes().toString().padStart(2,'0')} Z</div>
+                         </div>
+                         <div className="daylight-bar-container w-full shadow-inner">
+                            <div className="absolute h-full twilight-morning" style={{ left: `${toPct(dawnStart)}%`, width: `${toPct(riseLocal - dawnStart)}%` }}></div>
+                            <div className="absolute h-full daylight" style={{ left: `${toPct(riseLocal)}%`, width: `${toPct(setLocal - riseLocal)}%` }}></div>
+                            <div className="absolute h-full twilight-evening" style={{ left: `${toPct(setLocal)}%`, width: `${toPct(duskEnd - setLocal)}%` }}></div>
+                            <div className="time-marker" style={{ left: `${toPct(nowLocal)}%` }}></div>
+                         </div>
+                         <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-1 relative h-4">
+                             <span className="absolute transform -translate-x-1/2" style={{left: `${toPct(riseLocal)}%`}}>{formatTime(riseLocal)} (L)</span>
+                             <span className="absolute transform -translate-x-1/2" style={{left: `${toPct(setLocal)}%`}}>{formatTime(setLocal)} (L)</span>
+                         </div>
+                    </div>
+                );
+            };
+
+            const renderRunways = () => {
+                if (!weatherData || !weatherData.runways || weatherData.runways.length === 0) return null;
+
+                return (
+                    <div className="mt-6">
+                        <div className="flex justify-between items-center mb-3">
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold uppercase">
+                                <Plane className="w-4 h-4 text-slate-400" />{t.runways}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {weatherData.runways.map((rwy, idx) => {
+                                const comps1 = calculateRunwayComponents(rwy.heading1, weatherData.windDir, weatherData.windSpd);
+                                const comps2 = calculateRunwayComponents(rwy.heading2, weatherData.windDir, weatherData.windSpd);
+
+                                return (
+                                    <div key={idx} className="bg-slate-50 rounded-lg p-3 border border-slate-100 text-sm">
+                                        <div className="flex justify-between font-bold text-slate-700 border-b border-slate-200 pb-1 mb-2">
+                                            <span>{t.rw} {rwy.ident1}/{rwy.ident2}</span>
+                                            <span className="text-slate-500 font-normal">{rwy.length_ft} ft</span>
+                                        </div>
+                                        {comps1 && (
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-xs text-slate-500 font-mono">{rwy.ident1} ({rwy.heading1}°)</span>
+                                                <div className="flex gap-3 text-xs">
+                                                    <span className={comps1.crosswind > 15 ? 'text-red-600 font-bold' : 'text-slate-600'}>{t.xwind}: {comps1.crosswind} {t.kt}</span>
+                                                    <span className={comps1.isHeadwind ? 'text-green-600' : 'text-orange-600'}>{comps1.isHeadwind ? t.hwind : t.twind}: {Math.abs(comps1.headwind)} {t.kt}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {comps2 && (
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs text-slate-500 font-mono">{rwy.ident2} ({rwy.heading2}°)</span>
+                                                <div className="flex gap-3 text-xs">
+                                                    <span className={comps2.crosswind > 15 ? 'text-red-600 font-bold' : 'text-slate-600'}>{t.xwind}: {comps2.crosswind} {t.kt}</span>
+                                                    <span className={comps2.isHeadwind ? 'text-green-600' : 'text-orange-600'}>{comps2.isHeadwind ? t.hwind : t.twind}: {Math.abs(comps2.headwind)} {t.kt}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderAerodromePlate = () => {
+                if (!showPlate || !weatherData) return null;
+                const age = getMetarAge(weatherData.timestamp);
+
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay">
+                        <div className="modal-content">
+                            <div className="bg-slate-900 text-white p-4 flex justify-between items-center shrink-0">
+                                <div>
+                                    <h2 className="text-2xl font-bold flex flex-wrap items-center gap-3">
+                                        <span className="bg-blue-600 px-3 py-1 rounded-lg text-lg font-mono tracking-wider">{weatherData.icao}</span>
+                                        {weatherData.name}
+                                        <span className={`px-3 py-1 rounded-md text-sm font-black border shadow-lg ${getFlightCategoryColor(weatherData.flightCategory)}`}>
+                                            {weatherData.flightCategory}
+                                        </span>
+                                    </h2>
+                                    <div className="text-sm text-slate-400 mt-1 flex gap-4 items-center">
+                                        <span className={`font-mono font-bold flex items-center gap-2 ${age.isOld ? 'text-red-500' : 'text-slate-300'}`}>
+                                            {age.isOld && <AlertTriangle className="w-4 h-4" />}
+                                            {age.text} ({age.diffMins} min ago)
+                                        </span>
+                                        <span className="font-mono text-yellow-400">DA: {calcDetails.da} ft</span>
+                                    </div>
+                                </div>
+                                <button onClick={() => setShowPlate(false)} className="p-2 hover:bg-slate-800 rounded-full transition-colors"><XCircle className="w-8 h-8 text-slate-400 hover:text-white" /></button>
+                            </div>
+                            
+                            <div className="modal-body">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                                        <h3 className="font-bold text-slate-700 uppercase text-xs mb-3 flex items-center gap-2"><CloudRain className="w-4 h-4" /> {t.weather}</h3>
+                                        <div className="font-mono text-sm bg-white p-3 border border-slate-200 rounded mb-4">{weatherData.raw}</div>
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div className="flex justify-between border-b border-slate-200 pb-1"><span className="text-slate-500">{t.wind}</span><span className="font-bold">{weatherData.windDir ? `${weatherData.windDir}°` : 'Var'} / {weatherData.windSpd}kt</span></div>
+                                            <div className="flex justify-between border-b border-slate-200 pb-1"><span className="text-slate-500">{t.visibility}</span><span className="font-bold">{typeof weatherData.vis === 'number' ? `${(weatherData.vis / 1000).toFixed(1)} km` : 'N/A'}</span></div>
+                                            <div className="flex justify-between border-b border-slate-200 pb-1"><span className="text-slate-500">{t.temp} / {t.dewpoint}</span><span className="font-bold">{weatherData.tempC}° / {weatherData.dewC}°</span></div>
+                                            <div className="flex justify-between border-b border-slate-200 pb-1">
+                                                <span className="text-slate-500">{t.altimeter}</span>
+                                                <div className="text-right">
+                                                    <div className="font-bold">{weatherData.altimHpa.toFixed(0)} hPa</div>
+                                                    <div className="text-xs text-slate-500">{weatherData.altimInHg.toFixed(2)} inHg</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-5">
+                                        <h3 className="font-bold text-blue-800 uppercase text-xs mb-3 flex items-center gap-2"><Info className="w-4 h-4" /> Performance Data</h3>
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center"><span className="text-blue-600 font-medium">{t.pressAlt}</span><span className="text-2xl font-bold text-slate-800">{calcDetails.pa} <span className="text-xs text-slate-400">ft</span></span></div>
+                                            <div className="flex justify-between items-center"><span className="text-blue-600 font-medium">Density Altitude</span><span className="text-2xl font-black text-blue-700">{calcDetails.da} <span className="text-xs text-blue-400">ft</span></span></div>
+                                            <div className="flex justify-between items-center pt-2 border-t border-blue-200"><span className="text-blue-600 font-medium">{t.isaTemp}</span><span className="font-bold text-slate-700">{calcDetails.isaTemp}°C</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                                    <div className="space-y-6">
+                                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col items-center">
+                                            <h3 className="font-bold text-slate-700 uppercase text-xs mb-4 flex items-center gap-2 self-start"><Plane className="w-4 h-4" /> {t.diagram}</h3>
+                                            <AirportDiagram runways={weatherData.runways} windDir={weatherData.windDir} windSpd={weatherData.windSpd} />
+                                        </div>
+                                        {renderRunways()}
+                                    </div>
+                                    <div className="space-y-6">
+                                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                                            <h3 className="font-bold text-slate-700 uppercase text-xs mb-3 flex items-center gap-2"><Radio className="w-4 h-4" /> {t.freqs}</h3>
+                                            {weatherData.freqs && weatherData.freqs.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {weatherData.freqs.map((f, i) => (
+                                                        <div key={i} className="flex justify-between text-sm border-b border-slate-100 last:border-0 pb-1">
+                                                            <span className="text-slate-500 font-medium">{f.type}</span>
+                                                            <span className="font-bold text-slate-800">{f.mhz}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : <div className="text-sm text-slate-400 italic">{t.noFreqs}</div>}
+                                        </div>
+                                        {renderDaylightBar()}
+                                    </div>
+                                </div>
+                                {tafData && (
+                                    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mt-6">
+                                        <div className="bg-slate-100 px-5 py-3 border-b border-slate-200 font-bold text-slate-700 text-sm flex items-center gap-2"><Clock className="w-4 h-4" /> {t.forecast}</div>
+                                        <div className="p-5 font-mono text-sm text-slate-600 whitespace-pre-wrap">{tafData.rawTAF}</div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
+                    <div className="bg-amber-100 border-b border-amber-200 p-2 text-center text-xs md:text-sm font-bold text-amber-800 uppercase tracking-wide">{t.disclaimer}</div>
+                    <div className="p-4 md:p-8 flex-grow">
+                        <div className="max-w-3xl mx-auto space-y-6">
+                            <div className="flex flex-col items-center justify-center space-y-4">
+                                <a href="https://www.xaxero.com"><img src="https://xaxero.com/images/XaxeroMainLogoFinal.png" alt="Xaxero Logo" className="h-16 md:h-20 object-contain mb-2 cursor-pointer"/></a>
+                                <div className="text-center space-y-2"><h1 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight">{t.title}</h1><p className="text-slate-500 font-medium">{t.subtitle}</p></div>
+                            </div>
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 md:p-6">
+                                <div className="flex flex-col md:flex-row gap-3 items-center">
+                                    <select value={lang} onChange={(e) => setLang(e.target.value)} className="h-12 px-3 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-600 focus:ring-2 focus:ring-blue-200 outline-none cursor-pointer">
+                                        <option value="en">EN</option><option value="es">ES</option><option value="fr">FR</option><option value="de">DE</option>
+                                    </select>
+                                    <div className="relative flex-grow w-full">
+                                        <input type="text" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} placeholder={t.placeholder} className="w-full pl-12 pr-4 h-12 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 text-lg font-semibold placeholder:font-normal outline-none" onKeyDown={(e) => e.key === 'Enter' && fetchWeather(inputCode)}/>
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                                    </div>
+                                    <div className="flex gap-2 w-full md:w-auto">
+                                        <button onClick={() => fetchWeather(inputCode)} disabled={!inputCode || loading} className="h-12 px-6 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2 flex-1 md:flex-initial whitespace-nowrap">{loading ? <RotateCcw className="animate-spin w-5 h-5" /> : t.getMetar}</button>
+                                        <button onClick={() => setShowPlate(true)} disabled={!weatherData} className="h-12 px-6 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:bg-slate-200 flex items-center justify-center gap-2 flex-1 md:flex-initial whitespace-nowrap shadow-lg shadow-blue-200"><Maximize className="w-5 h-5" /> {t.plot}</button>
+                                    </div>
+                                </div>
+                                {error && <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 flex items-start gap-3"><AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" /><p>{error}</p></div>}
+                            </div>
+                            {weatherData && calcDetails && (
+                            <div className="space-y-6 animate-fade-in">
+                                {Number(calcDetails.da) > 3000 && <div className="p-4 bg-red-50 border-l-4 border-red-600 rounded-r-xl flex items-start gap-4 shadow-sm animate-pulse"><AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0" /><div><h4 className="font-bold text-red-800 uppercase tracking-wide text-sm">{t.highDaWarning}</h4><p className="text-red-700 font-semibold mt-1">{t.highDaAdvice}</p></div></div>}
+                                <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden relative">
+                                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+                                    <div className="p-8 text-center space-y-2">
+                                        {/* Timestamp on Main Card */}
+                                        {(() => {
+                                            const age = getMetarAge(weatherData.timestamp);
+                                            return (
+                                                <div className={`absolute top-4 right-4 text-xs font-mono font-bold flex items-center gap-1 ${age.isOld ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-slate-400'}`}>
+                                                    {age.isOld && <AlertTriangle className="w-3 h-3" />}
+                                                    {age.text} ({age.diffMins}m)
+                                                </div>
+                                            );
+                                        })()}
+
+                                        <div className="text-5xl font-black text-slate-800 tracking-tighter">{calcDetails.da} <span className="text-2xl text-slate-400 font-medium">ft</span></div>
+                                        <div className="text-sm text-slate-400 font-mono">({calcDetails.daM} m)</div>
+                                        <div className="pt-2 flex justify-center gap-3">
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold bg-white border shadow-sm ${getDaSeverity(calcDetails.da, weatherData.elevM).color}`}>{getDaSeverity(calcDetails.da, weatherData.elevM).label}</span>
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold border shadow-sm ${getFlightCategoryColor(weatherData.flightCategory)}`}>
+                                                {weatherData.flightCategory}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/50">
+                                        <div className="p-4 text-center"><div className="text-slate-400 text-xs font-bold uppercase mb-1">{t.pressAlt}</div><div className="text-xl font-bold text-slate-700">{calcDetails.pa} ft</div></div>
+                                        <div className="p-4 text-center"><div className="text-slate-400 text-xs font-bold uppercase mb-1">{t.temp}</div><div className="text-xl font-bold text-slate-700">{weatherData.tempC !== undefined && typeof weatherData.tempC === 'number' ? weatherData.tempC.toFixed(0) : "N/A"}°C</div></div>
+                                        <div className="p-4 text-center"><div className="text-slate-400 text-xs font-bold uppercase mb-1">{t.altimeter}</div><div className="text-xl font-bold text-slate-700">{weatherData.altimHpa.toFixed(0)} hPa</div><div className="text-xs text-slate-400 font-mono mt-1">{weatherData.altimInHg.toFixed(2)} inHg</div></div>
+                                        <div className="p-4 text-center"><div className="text-slate-400 text-xs font-bold uppercase mb-1">{t.fieldElev}</div><div className="text-xl font-bold text-slate-700">{(weatherData.elevM * 3.28084).toFixed(0)} ft</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            )}
+                        </div>
+                    </div>
+                    {renderAerodromePlate()}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<DensityAltitudeApp />);
+    </script>
+</body>
+</html>
