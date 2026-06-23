@@ -6,10 +6,10 @@
     <title>SENTINEL AI - Aviation Intelligence</title>
     
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.13/index.global.js"></script>
     
     <!-- Babel for JSX transformation in browser -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.0/babel.min.js"></script>
 
     <!-- Custom Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -34,36 +34,41 @@
             background: #475569; 
         }
     </style>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@1.21.0/dist/umd/lucide.min.js"></script>
+
 </head>
 <body class="bg-slate-950 text-slate-200 min-h-screen">
     
     <div id="root"></div>
 
     <!-- Application Script -->
-    <script type="text/babel" data-type="module">
-        import React, { useState, useEffect, useRef } from 'https://esm.sh/react@18.2.0';
-        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
-        import { 
-          Plane, 
-          AlertTriangle, 
-          ShieldAlert, 
-          Info, 
-          Radio, 
-          Database, 
-          Search, 
-          CheckCircle2, 
-          XCircle, 
-          Activity, 
-          Wind, 
-          Clock, 
-          Menu, 
-          Terminal, 
-          ChevronDown, 
-          ChevronUp, 
-          BrainCircuit, 
-          Key, 
-          ExternalLink 
-        } from 'https://esm.sh/lucide-react@0.263.1';
+    <script type="text/babel">
+
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size = 24, className = '' }) => {
+            const ref = useRef(null);
+
+            useEffect(() => {
+                if (!ref.current || !window.lucide || !window.lucide.icons || !window.lucide.icons[name]) return;
+                try {
+                    const svg = window.lucide.createElement(window.lucide.icons[name], {
+                        class: className,
+                        width: size,
+                        height: size,
+                        'stroke-width': 2
+                    });
+                    ref.current.innerHTML = '';
+                    ref.current.appendChild(svg);
+                } catch (e) {
+                    ref.current.innerText = name;
+                }
+            }, [name, size, className]);
+
+            return <span ref={ref} className="inline-flex items-center justify-center" style={{ width: size, height: size }}></span>;
+        };
 
         function AeroIntelApp() {
           // STATE MANAGEMENT
@@ -178,7 +183,7 @@
                 <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-cyan-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(8,145,178,0.5)]">
-                      <Plane className="text-white transform -rotate-45" size={24} />
+                      <Icon name="Plane" className="text-white transform -rotate-45" size={24} />
                     </div>
                     <div>
                       <h1 className="text-xl font-bold tracking-wider text-white">SENTINEL <span className="text-cyan-500">AI</span></h1>
@@ -211,7 +216,7 @@
                       {/* API Key Input */}
                       <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-lg relative group">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                          <Key size={12} /> System Access Key
+                          <Icon name="Key" size={12} /> System Access Key
                         </label>
                         <input 
                           type="password" 
@@ -226,7 +231,7 @@
                           rel="noopener noreferrer"
                           className="text-[10px] text-cyan-500 hover:text-cyan-400 flex items-center gap-1 hover:underline"
                         >
-                          <ExternalLink size={10} /> Get API Key (Google AI Studio)
+                          <Icon name="ExternalLink" size={10} /> Get API Key (Google AI Studio)
                         </a>
                       </div>
 
@@ -241,7 +246,7 @@
                             className="w-full bg-slate-950 border border-slate-700 text-3xl font-mono text-white p-4 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none text-center tracking-widest"
                             maxLength={4}
                           />
-                          <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600" size={20} />
+                          <Icon name="Search" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600" size={20} />
                         </div>
                       </div>
 
@@ -251,7 +256,7 @@
                     <div className="lg:col-span-4 flex flex-col gap-2">
                        <div className="flex items-center justify-between">
                          <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                           <Database size={14} /> Official NOTAMs
+                           <Icon name="Database" size={14} /> Official NOTAMs
                          </label>
                          <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-500">ICAO FORMAT</span>
                        </div>
@@ -267,7 +272,7 @@
                     <div className="lg:col-span-5 flex flex-col gap-2">
                        <div className="flex items-center justify-between">
                          <label className="flex items-center gap-2 text-xs font-bold text-amber-500/80 uppercase tracking-wider">
-                           <Radio size={14} /> Raw Intel / Scrapings
+                           <Icon name="Radio" size={14} /> Raw Intel / Scrapings
                          </label>
                          <span className="text-[10px] bg-amber-900/20 px-2 py-0.5 rounded text-amber-500/60">UNVERIFIED</span>
                        </div>
@@ -292,12 +297,12 @@
                       <div className="flex items-center gap-3 relative z-10">
                         {loading ? (
                           <>
-                            <Activity className="animate-spin" />
+                            <Icon name="Activity" className="animate-spin" />
                             Synthesizing Intelligence...
                           </>
                         ) : (
                           <>
-                            <BrainCircuit />
+                            <Icon name="BrainCircuit" />
                             Synthesize Intel
                           </>
                         )}
@@ -308,7 +313,7 @@
 
                   {error && (
                     <div className="mt-6 mx-auto max-w-2xl bg-red-950/50 border border-red-900/50 p-4 rounded-lg flex items-center gap-3 text-red-200">
-                      <XCircle className="shrink-0" />
+                      <Icon name="XCircle" className="shrink-0" />
                       <p>{error}</p>
                     </div>
                   )}
@@ -350,17 +355,17 @@
                       {/* SUMMARY CARD */}
                       <div className="lg:col-span-3 bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-4 opacity-10">
-                          <Plane size={120} />
+                          <Icon name="Plane" size={120} />
                         </div>
                         <h3 className="text-xs font-bold text-cyan-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                          <Activity size={14} /> Mission Summary
+                          <Icon name="Activity" size={14} /> Mission Summary
                         </h3>
                         <p className="text-lg md:text-xl text-slate-200 font-light leading-relaxed max-w-4xl">
                           {briefing.summary}
                         </p>
                         {briefing.weather_check !== 'Not Provided' && (
                           <div className="mt-4 flex items-start gap-2 text-sm text-slate-400 bg-slate-950/50 p-3 rounded-lg inline-flex">
-                            <Wind size={16} className="mt-0.5 text-slate-500" />
+                            <Icon name="Wind" size={16} className="mt-0.5 text-slate-500" />
                             <span>{briefing.weather_check}</span>
                           </div>
                         )}
@@ -369,7 +374,7 @@
                       {/* CRITICAL COLUMN */}
                       <div className="lg:col-span-2 space-y-4">
                         <div className="flex items-center gap-2 mb-2">
-                           <ShieldAlert className="text-red-500" size={18} />
+                           <Icon name="ShieldAlert" className="text-red-500" size={18} />
                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Critical Hazards</h3>
                         </div>
                         
@@ -384,7 +389,7 @@
                         )}
 
                         <div className="flex items-center gap-2 mt-8 mb-2">
-                           <AlertTriangle className="text-amber-500" size={18} />
+                           <Icon name="AlertTriangle" className="text-amber-500" size={18} />
                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Operational Advisories</h3>
                         </div>
 
@@ -399,7 +404,7 @@
                         {/* INFO LIST */}
                         <div className="bg-slate-900 rounded-xl border border-slate-800 p-5">
                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                             <Info size={14} /> General Info
+                             <Icon name="Info" size={14} /> General Info
                            </h3>
                            <div className="space-y-4">
                              {briefing.items.filter(i => i.category === 'INFO').map((item) => (
@@ -478,7 +483,7 @@
                         <div className="h-full bg-current" style={{ width: `${item.reliability}%` }}></div>
                      </div>
                    </div>
-                   {expanded ? <ChevronUp size={16} className="opacity-50" /> : <ChevronDown size={16} className="opacity-50" />}
+                   {expanded ? <Icon name="ChevronUp" size={16} className="opacity-50" /> : <Icon name="ChevronDown" size={16} className="opacity-50" />}
                 </div>
               </div>
               
@@ -488,11 +493,11 @@
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                        <span className="block text-[10px] uppercase opacity-50 mb-0.5">Source</span>
-                       <span className="flex items-center gap-1"><Database size={10} /> {item.source}</span>
+                       <span className="flex items-center gap-1"><Icon name="Database" size={10} /> {item.source}</span>
                     </div>
                     <div>
                        <span className="block text-[10px] uppercase opacity-50 mb-0.5">Validity</span>
-                       <span className="flex items-center gap-1"><Clock size={10} /> {item.validity}</span>
+                       <span className="flex items-center gap-1"><Icon name="Clock" size={10} /> {item.validity}</span>
                     </div>
                   </div>
                 </div>
@@ -501,7 +506,7 @@
           );
         }
 
-        const root = createRoot(document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<AeroIntelApp />);
     </script>
 </body>
