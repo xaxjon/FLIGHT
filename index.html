@@ -6,6 +6,11 @@
     <title>Density Altitude</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛫</text></svg>">
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛫</text></svg>">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Density Altitude">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
        <!-- Logging interface -->
     <script src="https://xaxero.com/dlog/tracker.js" data-app-name="DensAlt"></script>
   
@@ -1156,6 +1161,13 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<DensityAltitudeApp />);
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then((reg) => console.log('[PWA] Service worker registered:', reg.scope))
+                .catch((err) => console.warn('[PWA] Service worker registration failed:', err));
+        }
     </script>
 </body>
 </html>
