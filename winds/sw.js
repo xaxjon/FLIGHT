@@ -1,30 +1,15 @@
-const CACHE_NAME = 'flight-apps-v1';
+const CACHE_NAME = 'winds-aloft-v1';
 
-// Local app shells, manifests, and icons.
+// Local app shell and icons.
 const LOCAL_ASSETS = [
   './index.html',
-  './flight.html',
-  './manifest-density.json',
-  './manifest-winds.json',
-  './icon-density-192.png',
-  './icon-density-512.png',
-  './icon-winds-192.png',
-  './icon-winds-512.png'
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
-// External dependencies used by index.html (Density Altitude).
-const DENSITY_CDN = [
-  'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.0/babel.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.13/index.global.js',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap',
-  'https://xaxero.com/dlog/tracker.js',
-  'https://xaxero.com/images/XaxeroMainLogoFinal.png'
-];
-
-// External dependencies used by flight.html (Winds Aloft).
-const WINDS_CDN = [
+// External dependencies used by the Winds Aloft app.
+const CDN_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.13/index.global.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
@@ -36,7 +21,7 @@ const WINDS_CDN = [
   'https://xaxero.com/images/XaxeroLogoSansSloganCopy.png'
 ];
 
-const PRECACHE_URLS = [...LOCAL_ASSETS, ...DENSITY_CDN, ...WINDS_CDN];
+const PRECACHE_URLS = [...LOCAL_ASSETS, ...CDN_ASSETS];
 
 // Try a normal CORS cache.add first, then fall back to no-cors fetch+put
 // for resources that don't send CORS headers.

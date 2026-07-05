@@ -6,7 +6,7 @@
     <title>Winds Aloft</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💨</text></svg>">
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💨</text></svg>">
-    <link rel="manifest" href="manifest-winds.json">
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Winds Aloft">
@@ -670,7 +670,7 @@
             const Services = {
                 fetchAirport: async (icao) => {
                     try {
-                        const res = await fetchWithTimeout(`station_lookup.php?icao=${icao}`);
+                        const res = await fetchWithTimeout(`../station_lookup.php?icao=${icao}`);
                         const d = await res.json();
                         if(!d.lat) throw new Error("Not Found");
                         return { ...d, lat: parseFloat(d.lat), lon: parseFloat(d.lon), elev: parseInt(d.elev_ft) };
