@@ -6,6 +6,11 @@
     <title>Winds Aloft</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💨</text></svg>">
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💨</text></svg>">
+    <link rel="manifest" href="manifest-winds.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Winds Aloft">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
        <!-- Logging interface -->
     <script src="https://xaxero.com/dlog/tracker.js" data-app-name="WindsAloft"></script>
   
@@ -1831,6 +1836,13 @@ Note: L=Left Deviation, R=Right Deviation, C=Center.
                 document.body.innerHTML = `<div style="color:red; padding:20px;"><h1>App Crashed</h1><pre>${e.message}</pre></div>`;
             }
         });
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then((reg) => console.log('[PWA] Service worker registered:', reg.scope))
+                .catch((err) => console.warn('[PWA] Service worker registration failed:', err));
+        }
     </script>
 </body>
 </html>
